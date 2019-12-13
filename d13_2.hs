@@ -42,18 +42,6 @@ tileToChr t = case t of
   HPaddle -> '█'
   Ball -> 'o'
 
-getBallPosition :: Screen -> Point
-getBallPosition (Screen ts _) = Maybe.fromMaybe (0,0)
-                              $ fmap fst
-                              $ List.find (\(p,t) -> t == Ball)
-                              $ Map.toList ts
-
-getPaddlePosition :: Screen -> Point
-getPaddlePosition (Screen ts _) = Maybe.fromMaybe (0,0)
-                              $ fmap fst
-                              $ List.find (\(p,t) -> t == HPaddle)
-                              $ Map.toList ts
-
 drawMap :: (a -> Char) -> a -> Map.Map Point a -> String
 drawMap draw def as =
   let keys = Map.keys as
@@ -71,9 +59,6 @@ chunksOf n as
  | length as > n = take n as : chunksOf n (drop n as)
  | otherwise = [as]
 
-count :: (Eq a) => a -> [a] -> Int
-count a = length . filter (==a)
-
 parse :: String -> Int
 parse ('a':_) = -1
 parse ('d':_) =  1
@@ -81,37 +66,26 @@ parse _ = 0
 
 gameLoop :: Cabinet -> IO ()
 gameLoop s = do
-  putStrLn $ drawMap tileToChr Empty $ tiles $ (screen s)
+  --putStrLn $ drawMap tileToChr Empty $ tiles $ (screen s)
   putStrLn $ "Score: " ++ show (segDisp (screen s))
   input <- parse <$> (return "1")
-  let comp = runUntil (\c -> isTerminal c || (null . inputs) c)
-           $ (computer s) { inputs = [input] }
-  let screenCode = outputs comp
-  let scr = foldl (flip updateScreen) (screen s) (chunksOf 3 screenCode)
-  putStrLn "------------------------------------------------------------"
-  gameLoop (s { computer = comp { outputs = [] }, screen = scr }) (bx1, by1)
-
-score :: Cabinet -> Int
-score = segDisp . screen
-
-blocks :: Cabinet -> Int
-blocks = count Block . Map.elems . tiles . screen
+  let sn = Maybe.fromMaybe (error "Game Finished") $ updateCab input s
+  --putStrLn "------------------------------------------------------------"
+  gameLoop sn
 
 updateCab :: Int -> Cabinet -> Maybe Cabinet
 updateCab !input !cab =
   let !comp = runUntil (\c -> isTerminal c || (null . inputs) c)
-           $ (computer cab) { inputs = [input] }
-  in if null (outputs comp) || snd (getBallPosition (screen cab)) >=23
+            $ (computer cab) { inputs = [input] }
+  in if null (outputs comp)
      then Nothing
      else let !scrCmd = outputs comp
               !scr = foldl (flip updateScreen) (screen cab) (chunksOf 3 scrCmd)
           in Just $ cab { computer = comp { outputs = [] }, screen = scr }
 
-
-blankScreen = Screen (Map.fromList [((0,0), Empty)]) 0
-
 main :: IO ()
 main = do
   !comp <- writeMemory 0 2 . parseInput <$> readFile "d13_2.in"
+  let blankScreen = Screen (Map.fromList [((0,0), Empty)]) 0
   let !initialState = Cabinet { computer = comp, screen = blankScreen }
   gameLoop initialState
