@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
--- Advent of Code 2019 Day 14 Part 1
--- https://adventofcode.com/2019/day/14
+-- Advent of Code 2019 Day 14 Part 2
+-- https://adventofcode.com/2019/day/14#part2
 import Text.Parsec
 import Data.Either
 import Data.Maybe
@@ -11,6 +11,9 @@ type Ore = Int
 type Label = String
 type Component = (Int, Label)
 data Rule = Rule ![Component] !Component deriving (Show)
+
+reduceToOre :: [Rule] -> Component -> Int
+reduceToOre !rs !c = go rs (0, [c])
 
 go :: [Rule] -> (Ore, [Component]) -> Int
 go !rs (!ore, !cs)
@@ -104,4 +107,15 @@ parseRules = fromRight undefined . parse (many (rule <* newline)) ""
 main :: IO ()
 main = do
   rules <- parseRules <$> readFile "d14_1.in"
-  putStrLn $ show $ go rules (0, [(1, "FUEL")])
+  putStrLn $ show $ guess rules 1 trillion
+
+trillion = 1000000000000
+
+guess :: [Rule] -> Int -> Int -> Int
+guess rs smallGuess bigGuess
+  | bigGuess - smallGuess == 1 = smallGuess
+  | oreRequired < trillion = guess rs midGuess bigGuess
+  | oreRequired > trillion = guess rs smallGuess midGuess
+  where
+    midGuess = div (smallGuess + bigGuess) 2
+    oreRequired = reduceToOre rs (midGuess, "FUEL")
